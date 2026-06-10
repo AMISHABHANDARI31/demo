@@ -1,34 +1,37 @@
-import { createContext, useContext, useMemo, useState } from 'react';
-import { STORAGE_KEYS } from '../constants/appConstants';
-import { storage } from '../utils/storage';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { tokenStorage } from '../utils/tokenStorage';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => storage.get(STORAGE_KEYS.AUTH_USER));
-  const [token, setToken] = useState(() => storage.get(STORAGE_KEYS.AUTH_TOKEN));
+  const [user, setUser] = useState(() => tokenStorage.getUser());
+  const [token, setToken] = useState(() => tokenStorage.getToken());
 
-  const login = (authData) => {
+  const login = useCallback((authData) => {
     const nextToken = authData?.token;
     const nextUser = authData?.user;
 
     if (nextToken) {
-      storage.set(STORAGE_KEYS.AUTH_TOKEN, nextToken);
+      tokenStorage.setToken(nextToken);
       setToken(nextToken);
     }
 
     if (nextUser) {
-      storage.set(STORAGE_KEYS.AUTH_USER, nextUser);
+      tokenStorage.setUser(nextUser);
       setUser(nextUser);
     }
-  };
+  }, []);
 
-  const logout = () => {
-    storage.remove(STORAGE_KEYS.AUTH_TOKEN);
-    storage.remove(STORAGE_KEYS.AUTH_USER);
+  const updateUser = useCallback((nextUser) => {
+    tokenStorage.setUser(nextUser);
+    setUser(nextUser);
+  }, []);
+
+  const logout = useCallback(() => {
+    tokenStorage.clearAuth();
     setToken(null);
     setUser(null);
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -37,8 +40,9 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token),
       login,
       logout,
+      updateUser,
     }),
-    [token, user],
+    [login, logout, token, updateUser, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

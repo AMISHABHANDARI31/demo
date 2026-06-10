@@ -2,9 +2,10 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const authRoutes = require("./routes/authRoutes");
 const healthRoutes = require("./routes/healthRoutes");
 const testRoutes = require("./routes/testRoutes");
-const errorHandler = require("./middleware/errorHandler");
+const errorMiddleware = require("./middleware/errorMiddleware");
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/api/auth", authRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/test", testRoutes);
 
@@ -28,6 +30,6 @@ app.use((req, res) => {
   });
 });
 
-app.use(errorHandler);
+app.use(errorMiddleware);
 
 module.exports = app;

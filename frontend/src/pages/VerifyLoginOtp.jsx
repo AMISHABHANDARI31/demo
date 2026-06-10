@@ -6,13 +6,15 @@ import Button from '../components/ui/Button';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import Input from '../components/ui/Input';
 import { ROUTES } from '../constants/appConstants';
+import { useAuth } from '../context/AuthContext';
 import { useAsync } from '../hooks/useAsync';
 import { authService } from '../services/authService';
 
-function Login() {
+function VerifyLoginOtp() {
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || ROUTES.DASHBOARD;
+  const { login } = useAuth();
+  const from = location.state?.from || ROUTES.DASHBOARD;
 
   const {
     register,
@@ -20,38 +22,34 @@ function Login() {
     formState: { errors },
   } = useForm({
     defaultValues: {
-      email: '',
-      password: '',
+      email: location.state?.email || '',
+      otp: '',
     },
   });
 
-  const loginRequest = useCallback((values) => authService.login(values), []);
-  const { error, execute, isLoading } = useAsync(loginRequest);
+  const verifyRequest = useCallback((values) => authService.verifyLoginOtp(values), []);
+  const { error, execute, isLoading } = useAsync(verifyRequest);
 
   const onSubmit = async (values) => {
     try {
       const data = await execute(values);
-      toast.success(data.message || 'Login OTP sent to your email');
-      navigate(ROUTES.VERIFY_LOGIN_OTP, {
-        state: {
-          email: values.email,
-          from,
-        },
-      });
+      login(data);
+      toast.success(data.message || 'Login verified successfully');
+      navigate(from, { replace: true });
     } catch (caughtError) {
-      toast.error(caughtError.message || 'Login failed');
+      toast.error(caughtError.message || 'OTP verification failed');
     }
   };
 
   return (
     <section className="px-4 py-16">
       <div className="mx-auto max-w-md rounded-md border border-slate-200 bg-white p-8 shadow-soft">
-        <h1 className="text-2xl font-bold text-slate-950">Sign in</h1>
-        <p className="mt-2 text-sm text-slate-600">Access your dashboard and continue your work.</p>
+        <h1 className="text-2xl font-bold text-slate-950">Verify login OTP</h1>
+        <p className="mt-2 text-sm text-slate-600">Enter the 6-digit OTP sent to your email.</p>
         <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)}>
           {error && <ErrorMessage message={error.message} />}
           <Input
-            id="email"
+            id="verify-login-email"
             label="Email"
             type="email"
             placeholder="you@example.com"
@@ -65,27 +63,28 @@ function Login() {
             })}
           />
           <Input
-            id="password"
-            label="Password"
-            type="password"
-            placeholder="Your password"
-            error={errors.password?.message}
-            {...register('password', {
-              required: 'Password is required',
+            id="verify-login-otp"
+            label="OTP"
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="123456"
+            error={errors.otp?.message}
+            {...register('otp', {
+              required: 'OTP is required',
               minLength: {
                 value: 6,
-                message: 'Password must be at least 6 characters',
+                message: 'OTP must be 6 digits',
               },
             })}
           />
           <Button className="w-full" type="submit" isLoading={isLoading}>
-            Login
+            Verify OTP
           </Button>
         </form>
         <p className="mt-6 text-center text-sm text-slate-600">
-          No account?{' '}
-          <Link className="font-semibold text-brand-600 hover:text-brand-700" to={ROUTES.REGISTER}>
-            Create one
+          Back to{' '}
+          <Link className="font-semibold text-brand-600 hover:text-brand-700" to={ROUTES.LOGIN}>
+            login
           </Link>
         </p>
       </div>
@@ -93,4 +92,4 @@ function Login() {
   );
 }
 
-export default Login;
+export default VerifyLoginOtp;

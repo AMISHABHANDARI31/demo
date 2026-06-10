@@ -6,13 +6,11 @@ import Button from '../components/ui/Button';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import Input from '../components/ui/Input';
 import { ROUTES } from '../constants/appConstants';
-import { useAuth } from '../context/AuthContext';
 import { useAsync } from '../hooks/useAsync';
 import { authService } from '../services/authService';
 
 function Register() {
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const {
     register,
@@ -30,10 +28,17 @@ function Register() {
   const { error, execute, isLoading } = useAsync(registerRequest);
 
   const onSubmit = async (values) => {
-    const data = await execute(values);
-    login(data);
-    toast.success('Account created');
-    navigate(ROUTES.DASHBOARD, { replace: true });
+    try {
+      const data = await execute(values);
+      toast.success(data.message || 'OTP sent to your email');
+      navigate(ROUTES.VERIFY_REGISTER_OTP, {
+        state: {
+          email: values.email,
+        },
+      });
+    } catch (caughtError) {
+      toast.error(caughtError.message || 'Registration failed');
+    }
   };
 
   return (
