@@ -28,10 +28,18 @@ const formatUser = (user) => ({
   createdAt: user.createdAt
 });
 
-const saveHashedOtp = async (user, otp) => {
-  user.otp = await bcrypt.hash(otp, 10);
-  user.otpExpiresAt = getOtpExpiryDate();
-  await user.save();
+const respondToOtpEmailError = (res, error) => {
+  if (error.message === "Email service is not configured") {
+    return res.status(503).json({
+      success: false,
+      message: "Email service is not configured. OTP cannot be sent."
+    });
+  }
+
+  return res.status(error.statusCode || 503).json({
+    success: false,
+    message: "OTP email could not be sent. Please try again later."
+  });
 };
 
 const verifyOtpForUser = async (user, otp) => {
@@ -76,6 +84,16 @@ const register = async (req, res, next) => {
     const otp = generateOtp();
     const hashedOtp = await bcrypt.hash(otp, 10);
 
+    try {
+      await sendEmail({
+        to: email,
+        subject: "Verify your account OTP",
+        html: buildOtpEmail(otp, "Account verification")
+      });
+    } catch (error) {
+      return respondToOtpEmailError(res, error);
+    }
+
     await User.create({
       name,
       email,
@@ -83,12 +101,6 @@ const register = async (req, res, next) => {
       isEmailVerified: false,
       otp: hashedOtp,
       otpExpiresAt: getOtpExpiryDate()
-    });
-
-    await sendEmail({
-      to: email,
-      subject: "Verify your account OTP",
-      html: buildOtpEmail(otp, "Account verification")
     });
 
     return res.status(201).json({
@@ -175,13 +187,21 @@ const login = async (req, res, next) => {
     }
 
     const otp = generateOtp();
-    await saveHashedOtp(user, otp);
+    const hashedOtp = await bcrypt.hash(otp, 10);
 
-    await sendEmail({
-      to: user.email,
-      subject: "Your login OTP",
-      html: buildOtpEmail(otp, "Login verification")
-    });
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Your login OTP",
+        html: buildOtpEmail(otp, "Login verification")
+      });
+    } catch (error) {
+      return respondToOtpEmailError(res, error);
+    }
+
+    user.otp = hashedOtp;
+    user.otpExpiresAt = getOtpExpiryDate();
+    await user.save();
 
     return res.status(200).json({
       success: true,

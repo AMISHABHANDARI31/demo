@@ -10,7 +10,15 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    console.log("Cloudinary configured successfully");
+    if (
+      process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+    ) {
+      console.log("Cloudinary configured successfully");
+    } else {
+      console.warn("Cloudinary is not fully configured. Upload features may be unavailable.");
+    }
 
     app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
